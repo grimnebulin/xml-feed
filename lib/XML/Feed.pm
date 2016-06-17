@@ -118,15 +118,34 @@ sub find_feeds {
     @feeds;
 }
 
+my @ALL_FIELDS = qw(
+    title base link description author language copyright modified
+    generator self_link first_link last_link next_link previous_link
+    current_link next_archive_link prev_archive_link
+);
+
+sub empty_copy {
+    my $feed = shift;
+    my @args;
+    if (@_) {
+        @args = shift;
+    } else {
+        my ($format, @version) = split / /, $feed->format;
+        @args = $format;
+        push @args, version => $version[0] if @version;
+    }
+    my $copy = XML::Feed->new(@args);
+    for my $field (@ALL_FIELDS) {
+        my $value = $feed->$field();
+        $copy->$field($value) if defined $value;
+    }
+    return $copy;
+}
+
 sub convert {
     my $feed = shift;
     my($format) = @_;
-    my $new = XML::Feed->new($format);
-    for my $field (qw( title link description language author copyright modified generator )) {
-        my $val = $feed->$field();
-        next unless defined $val;
-        $new->$field($val);
-    }
+    my $new = $feed->empty_copy($format);
     for my $entry ($feed->entries) {
         $new->add_entry($entry->convert($format));
     }
@@ -280,6 +299,11 @@ Returns a list of feed URIs.
 
 Given the xml of a feed return what format it is in, with C<Atom> or C<RSS> for
 all versions of RSS.  Note that you pass in a scalar ref to the xml string.
+
+=head2 $feed->empty_copy([ $format ])
+
+Return a copy of I<$feed> identical to it except that it contains no
+items, and its format is I<$format>, if that argument is present.
 
 =head2 $feed->convert($format)
 
